@@ -28,6 +28,8 @@ def get_account(index=None, id=None):
 
 contract_to_mock = {
     "eth_usd_price_feed": MockV3Aggregator,
+    "vrf_coordinator": VRFCoordinatorMock,
+    "link_token": LinkToken,
 }
 
 
@@ -65,5 +67,5 @@ def deploy_mocks(decimals=DECIMALS, initial_value=INITIAL_VALUE):
         print(f"Deploying Mocks...")
         MockV3Aggregator.deploy(decimals, initial_value, {"from": account})
         LinkToken.deploy({"from": account})
-        VRFCoordinatorMock.deploy(LinkToken[-1].address)
+        VRFCoordinatorMock.deploy(LinkToken[-1], {"from": account})
         print(f"Deployed Mocks")
