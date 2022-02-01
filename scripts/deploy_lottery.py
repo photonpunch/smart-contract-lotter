@@ -19,7 +19,7 @@ def deploy():
         config["networks"][network.show_active()]["var_fee"],
         config["networks"][network.show_active()]["vrf_key_hash"],
         {"from": account},
-        publish_source=config["networks"][network.show_active()]["verify"],
+        publish_source=config["networks"][network.show_active()].get("verify", False),
     )
 
 
