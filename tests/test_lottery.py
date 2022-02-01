@@ -1,7 +1,7 @@
 from brownie import Lottery, accounts, web3, exceptions
 import pytest
 from scripts.helpful_scripts import get_account
-from scripts.deployLottery import deploy
+from scripts.deploy_lottery import deploy
 from web3 import Web3
 import pytest
 
