@@ -3,12 +3,19 @@ pragma solidity ^0.6.6;
 
 import "@chainlink/contracts/src/v0.6/interfaces/AggregatorV3Interface.sol";
 import "@chainlink/contracts/src/v0.6/vendor/SafeMathChainlink.sol";
+import "@chainlink/contracts/src/v0.6/VRFConsumerBase.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
-contract Lottery is Ownable {
+contract Lottery is Ownable, VRFConsumerBase {
     using SafeMathChainlink for uint256;
     uint256 public usdEntryFee;
     AggregatorV3Interface internal ethUsdPriceFeed;
+    address payable[] public players;
+    bytes32 public keyHash;
+    uint256 public fee;
+    uint256 public randomness;
+    address payable public recentWinner;
+
     enum LOTTERY_STATE {
         OPEN,
         CLOSED,
@@ -17,13 +24,19 @@ contract Lottery is Ownable {
 
     LOTTERY_STATE public lottery_state;
 
-    constructor(address _ethUsdPriceFeedAddress) public {
+    constructor(
+        address _ethUsdPriceFeedAddress,
+        address _vrfCoordinator,
+        address _link,
+        uint256 _fee,
+        bytes32 _keyhash
+    ) public VRFConsumerBase(_vrfCoordinator, _link) {
         lottery_state = LOTTERY_STATE.CLOSED;
         usdEntryFee = 50 * (10**18);
         ethUsdPriceFeed = AggregatorV3Interface(_ethUsdPriceFeedAddress);
+        fee = _fee;
+        keyHash = _keyhash;
     }
-
-    address payable[] public players;
 
     function enter() public payable {
         require(
@@ -40,7 +53,7 @@ contract Lottery is Ownable {
         //    "Fee is not large enought to take part in lottery!"
         //);
         //Sends back change
-        msg.sender.send(msg.value - feeAtEnterTime);
+        msg.sender.transfer(msg.value - feeAtEnterTime);
         players.push(msg.sender);
     }
 
@@ -53,8 +66,7 @@ contract Lottery is Ownable {
 
     function startLottery() public onlyOwner {
         require(
-            lottery_state == LOTTERY_STATE.CLOSED &&
-                lottery_state != LOTTERY_STATE.CALCULATING,
+            lottery_state == LOTTERY_STATE.CLOSED,
             "Lottery is already running cannot start it."
         );
         lottery_state = LOTTERY_STATE.OPEN;
@@ -62,10 +74,31 @@ contract Lottery is Ownable {
 
     function endLottery() public onlyOwner {
         require(
-            lottery_state != LOTTERY_STATE.CLOSED &&
-                lottery_state != LOTTERY_STATE.CALCULATING,
+            lottery_state == LOTTERY_STATE.OPEN,
             "Lottery is not running. It must be started before it can be ended."
         );
-        lottery_state = LOTTERY_STATE.OPEN;
+        lottery_state = LOTTERY_STATE.CALCULATING;
+        requestRandomness(keyHash, fee);
+    }
+
+    /**
+     * Callback function used by VRF Coordinator
+     */
+    function fulfillRandomness(bytes32 _requestId, uint256 _randomness)
+        internal
+        override
+    {
+        require(
+            lottery_state == LOTTERY_STATE.CALCULATING,
+            "You aren't there yet!."
+        );
+        require(_randomness > 0, "random-not-found");
+        //Set winner.
+        uint256 indexOfWinner = _randomness % players.length;
+        randomness = _randomness;
+        recentWinner = players[indexOfWinner];
+        recentWinner.transfer(address(this).balance);
+
+        players = new address payable[](0);
     }
 }
