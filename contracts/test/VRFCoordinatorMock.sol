@@ -13,6 +13,15 @@ contract VRFCoordinatorMock {
         uint256 indexed seed
     );
 
+    event Response(
+        bool success,
+        bytes data,
+        address consumentContract,
+        uint256 randomness,
+        bytes32 requestId,
+        bytes4 selector
+    );
+
     constructor(address linkAddress) public {
         LINK = LinkTokenInterface(linkAddress);
     }
@@ -39,7 +48,15 @@ contract VRFCoordinatorMock {
         );
         uint256 b = 206000;
         require(gasleft() >= b, "not enough gas for consumer");
-        (bool success, ) = consumerContract.call(resp);
+        (bool success, bytes memory data) = consumerContract.call(resp);
+        emit Response(
+            success,
+            data,
+            consumerContract,
+            randomness,
+            requestId,
+            v.rawFulfillRandomness.selector
+        );
     }
 
     modifier onlyLINK() {

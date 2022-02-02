@@ -16,6 +16,8 @@ contract Lottery is Ownable, VRFConsumerBase {
     uint256 public randomness;
     address payable public recentWinner;
 
+    event RequestedRandomness(bytes32 requestId);
+
     enum LOTTERY_STATE {
         OPEN,
         CLOSED,
@@ -45,14 +47,7 @@ contract Lottery is Ownable, VRFConsumerBase {
         );
         // Set Minimum 50$
         uint256 feeAtEnterTime = getEntranceFee();
-
         require(msg.value > feeAtEnterTime, "Fee too small!");
-        //founderror
-        //require(
-        //    msg.value > feeAtEnterTime,
-        //    "Fee is not large enought to take part in lottery!"
-        //);
-        //Sends back change
         msg.sender.transfer(msg.value - feeAtEnterTime);
         players.push(msg.sender);
     }
@@ -78,7 +73,8 @@ contract Lottery is Ownable, VRFConsumerBase {
             "Lottery is not running. It must be started before it can be ended."
         );
         lottery_state = LOTTERY_STATE.CALCULATING;
-        requestRandomness(keyHash, fee);
+        bytes32 requestId = requestRandomness(keyHash, fee);
+        emit RequestedRandomness(requestId);
     }
 
     /**
@@ -100,5 +96,6 @@ contract Lottery is Ownable, VRFConsumerBase {
         recentWinner.transfer(address(this).balance);
 
         players = new address payable[](0);
+        lottery_state = LOTTERY_STATE.CLOSED;
     }
 }
